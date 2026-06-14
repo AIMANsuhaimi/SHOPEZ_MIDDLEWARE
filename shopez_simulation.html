@@ -624,7 +624,7 @@ function activateLine(id, cls, duration=600) {
 }
 
 // ── Backend connection (real RabbitMQ via order_api.py) ─────────────────────
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://shopezmiddleware-production.up.railway.app';
 
 async function checkApi() {
   const el = document.getElementById('api-status');
