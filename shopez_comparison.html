@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShopEZ Malaysia — Basic vs RabbitMQ Comparison</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111827;
+    --border: #1e2d45;
+    --accent: #f97316;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #38bdf8;
+    --purple: #a78bfa;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --rabbit: #ff6b35;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 1;
+    padding: 24px 40px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+
+  .badge {
+    background: rgba(249,115,22,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(249,115,22,0.3);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    padding: 24px 16px;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+
+  h1 { font-size: 2rem; font-weight: 800; margin-bottom: 6px; }
+
+  .subtitle {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    margin-bottom: 28px;
+  }
+
+  /* ── Comparison grid ─────────────────────────────────────────────────── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  .system-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .system-card.mq { border-color: rgba(255,107,53,0.35); }
+
+  .system-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .system-title h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  .system-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .system-badge.basic { color: var(--blue); border-color: rgba(56,189,248,0.35); background: rgba(56,189,248,0.08); }
+  .system-badge.mq    { color: var(--rabbit); border-color: rgba(255,107,53,0.35); background: rgba(255,107,53,0.08); }
+
+  .system-desc {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.5;
+  }
+
+  /* ── Compact architecture diagram ───────────────────────────────────── */
+  .arch {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 10px;
+    overflow-x: auto;
+  }
+
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    min-width: 64px;
+  }
+
+  .node-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .node-icon.producer  { background: rgba(56,189,248,0.12); border-color: var(--blue); }
+  .node-icon.broker    { background: rgba(249,115,22,0.12); border-color: var(--rabbit); }
+  .node-icon.payment   { background: rgba(34,197,94,0.12);  border-color: var(--green); }
+  .node-icon.inventory { background: rgba(167,139,250,0.12);border-color: var(--purple); }
+  .node-icon.order     { background: rgba(251,191,36,0.12); border-color: var(--yellow); }
+
+  .node-icon.active { transform: scale(1.18); box-shadow: 0 0 14px currentColor; }
+  .node-icon.pulse::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 14px;
+    border: 2px solid currentColor;
+    animation: pulse-ring 0.6s ease-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.4); }
+  }
+
+  .node-label {
+    font-size: 0.58rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .node-label strong { color: var(--text); display: block; font-size: 0.62rem; }
+
+  .arrow {
+    flex: 1;
+    min-width: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .arrow-line {
+    height: 2px;
+    width: 100%;
+    background: var(--border);
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '▶';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--border);
+    font-size: 9px;
+    transition: color 0.3s;
+  }
+  .arrow-line.active { background: var(--accent); }
+  .arrow-line.active::after { color: var(--accent); }
+
+  .fanout-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-left: 6px;
+  }
+  .fanout-arrow {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 100px;
+  }
+  .fanout-line {
+    height: 2px;
+    width: 30px;
+    background: var(--border);
+    transition: background 0.3s;
+    position: relative;
+  }
+  .fanout-line::after {
+    content: '▶';
+    position: absolute;
+    right: -7px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: var(--border);
+    transition: color 0.3s;
+  }
+  .fanout-line.active-pay { background: var(--green);  }
+  .fanout-line.active-pay::after { color: var(--green); }
+  .fanout-line.active-inv { background: var(--purple); }
+  .fanout-line.active-inv::after { color: var(--purple); }
+  .fanout-line.active-ord { background: var(--yellow); }
+  .fanout-line.active-ord::after { color: var(--yellow); }
+
+  /* ── Controls ────────────────────────────────────────────────────────── */
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .count-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+  }
+  .count-box label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .count-box input {
+    width: 60px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    outline: none;
+  }
+
+  button {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #ea6c0a; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Throughput panel ───────────────────────────────────────────────── */
+  .throughput {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .throughput-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .throughput-head .label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  .throughput-metrics {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tp-metric .val { font-size: 1.3rem; font-weight: 800; line-height: 1; }
+  .tp-metric .lbl { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  .progress-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    transition: width 0.2s ease;
+  }
+  .progress-fill.basic { background: var(--blue); }
+  .progress-fill.mq    { background: var(--rabbit); }
+
+  .progress-caption {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .chart-wrap { width: 100%; }
+  .chart-wrap svg { width: 100%; height: 60px; display: block; }
+  .chart-grid-line { stroke: var(--border); stroke-width: 1; }
+  .chart-line.basic { stroke: var(--blue); }
+  .chart-line.mq    { stroke: var(--rabbit); }
+  .chart-line { fill: none; stroke-width: 2; }
+
+  /* ── Bottom panels ───────────────────────────────────────────────────── */
+  .bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 1300px) { .bottom { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+  }
+  .panel-header .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+  .panel-header span { color: var(--text); font-weight: 600; }
+
+  .log {
+    height: 220px;
+    overflow-y: auto;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem;
+    line-height: 1.7;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .log-entry { display: flex; gap: 6px; flex-wrap: wrap; }
+  .log-time  { color: var(--muted); flex-shrink: 0; }
+  .log-svc   { flex-shrink: 0; font-weight: 600; min-width: 110px; }
+  .log-msg   { color: var(--text); }
+
+  .svc-producer  { color: var(--blue); }
+  .svc-broker    { color: var(--rabbit); }
+  .svc-payment   { color: var(--green); }
+  .svc-inventory { color: var(--purple); }
+  .svc-order     { color: var(--yellow); }
+
+  .stats-grid {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .stat-val { font-size: 1.3rem; font-weight: 800; line-height: 1; margin-bottom: 2px; }
+  .stat-label { font-size: 0.6rem; font-family: 'JetBrains Mono', monospace; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .stock-list {
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+  }
+  .stock-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .stock-row:last-child { border-bottom: none; }
+  .stock-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .stock-fill { height: 100%; background: var(--purple); border-radius: 2px; transition: width 0.5s ease; }
+
+  .api-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Shop<span>EZ</span> Malaysia</div>
+  <div class="badge">SIDE-BY-SIDE COMPARISON</div>
+</header>
+
+<main>
+  <h1>Synchronous vs Asynchronous Order Processing</h1>
+  <p class="subtitle">// Run the same order load through both architectures and compare throughput in real time</p>
+
+  <div class="compare-grid">
+
+    <!-- ══════════════════════ BASIC SYSTEM ══════════════════════ -->
+    <div class="system-card basic">
+      <div class="system-title">
+        <h2>🔵 Basic In-Memory Simulation</h2>
+        <span class="system-badge basic">SYNC · LOCAL · CAP 50</span>
+      </div>
+      <p class="system-desc">All steps run sequentially in the browser, in order, one after another. No real backend — purely illustrative.</p>
+
+      <!-- Compact architecture -->
+      <div class="arch" id="arch-basic">
+        <div class="node">
+          <div class="node-icon producer" id="icon-producer-basic">🛒</div>
+          <div class="node-label"><strong>Producer</strong>UI</div>
+        </div>
+        <div class="arrow"><div class="arrow-line" id="arrow-to-broker-basic"></div></div>
+        <div class="node">
+          <div class="node-icon broker" id="icon-broker-basic">🐇</div>
+          <div class="node-label"><strong>Exchange</strong>Fanout</div>
+        </div>
+        <div class="fanout-block">
+          <div class="fanout-arrow">
+            <div class="fanout-line" id="fl-pay-basic"></div>
+            <div class="node"><div class="node-icon payment" id="icon-payment-basic">💳</div><div class="node-label"><strong>Payment</strong></div></div>
+          </div>
+          <div class="fanout-arrow">
+            <div class="fanout-line" id="fl-inv-basic"></div>
+            <div class="node"><div class="node-icon inventory" id="icon-inventory-basic">📦</div><div class="node-label"><strong>Inventory</strong></div></div>
+          </div>
+          <div class="fanout-arrow">
+            <div class="fanout-line" id="fl-ord-basic"></div>
+            <div class="node"><div class="node-icon order" id="icon-order-basic">📋</div><div class="node-label"><strong>Order</strong></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <div class="count-box">
+          <label for="order-count-basic">Orders:</label>
+          <input type="number" id="order-count-basic" value="10" min="1">
+        </div>
+        <button class="btn-primary" id="btn-place-basic">🛒 Place Order(s)</button>
+        <button class="btn-secondary" id="btn-stop-basic">⏹ Stop</button>
+        <button class="btn-secondary" id="btn-reset-basic">♻️ Reset</button>
+      </div>
+
+      <!-- Throughput -->
+      <div class="throughput">
+        <div class="throughput-head"><span class="label">Throughput</span></div>
+        <div class="throughput-metrics">
+          <div class="tp-metric"><div class="val" id="elapsed-basic">0.0s</div><div class="lbl">Elapsed</div></div>
+          <div class="tp-metric"><div class="val" id="rate-basic">0.00/s</div><div class="lbl">Orders / sec</div></div>
+          <div class="tp-metric"><div class="val" id="progress-num-basic">0 / 50</div><div class="lbl">Processed / Cap</div></div>
+        </div>
+        <div class="progress-track"><div class="progress-fill basic" id="progress-bar-basic"></div></div>
+        <div class="chart-wrap">
+          <svg viewBox="0 0 260 60" preserveAspectRatio="none">
+            <line class="chart-grid-line" x1="0" y1="15" x2="260" y2="15" stroke-dasharray="2,3"/>
+            <line class="chart-grid-line" x1="0" y1="30" x2="260" y2="30" stroke-dasharray="2,3"/>
+            <line class="chart-grid-line" x1="0" y1="45" x2="260" y2="45" stroke-dasharray="2,3"/>
+            <polyline class="chart-line basic" id="chart-line-basic" points=""/>
+          </svg>
+        </div>
+        <div class="progress-caption">Cumulative orders processed vs. elapsed time</div>
+      </div>
+
+      <!-- Bottom panels -->
+      <div class="bottom">
+        <div class="panel">
+          <div class="panel-header"><div class="dot"></div><span>System Log</span></div>
+          <div class="log" id="log-basic"><div class="log-entry" style="color:var(--muted)">Waiting for orders...</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="panel">
+            <div class="panel-header"><div class="dot" style="background:var(--blue);box-shadow:0 0 6px var(--blue)"></div><span>Stats</span></div>
+            <div class="stats-grid">
+              <div class="stat"><div class="stat-val" id="stat-orders-basic" style="color:var(--blue)">0</div><div class="stat-label">Orders Sent</div></div>
+              <div class="stat"><div class="stat-val" id="stat-paid-basic" style="color:var(--green)">0</div><div class="stat-label">Payments OK</div></div>
+              <div class="stat"><div class="stat-val" id="stat-failed-basic" style="color:var(--red)">0</div><div class="stat-label">Pay Failed</div></div>
+              <div class="stat"><div class="stat-val" id="stat-queued-basic" style="color:var(--rabbit)">0</div><div class="stat-label">Msgs Routed</div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></div><span>Inventory</span></div>
+            <div class="stock-list" id="stock-display-basic"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════ RABBITMQ SYSTEM ══════════════════════ -->
+    <div class="system-card mq">
+      <div class="system-title">
+        <h2>🐇 RabbitMQ Async Fanout</h2>
+        <span class="system-badge mq">ASYNC · FANOUT · CAP 100</span>
+      </div>
+      <p class="system-desc">Producer publishes to a fanout exchange; Payment, Inventory, and Order services consume independently. Uses the real <code>order_api.py</code> + RabbitMQ if running, else falls back to local simulation.</p>
+
+      <!-- Compact architecture -->
+      <div class="arch" id="arch-mq">
+        <div class="node">
+          <div class="node-icon producer" id="icon-producer-mq">🛒</div>
+          <div class="node-label"><strong>Producer</strong>UI</div>
+        </div>
+        <div class="arrow"><div class="arrow-line" id="arrow-to-broker-mq"></div></div>
+        <div class="node">
+          <div class="node-icon broker" id="icon-broker-mq">🐇</div>
+          <div class="node-label"><strong>RabbitMQ</strong>Fanout</div>
+        </div>
+        <div class="fanout-block">
+          <div class="fanout-arrow">
+            <div class="fanout-line" id="fl-pay-mq"></div>
+            <div class="node"><div class="node-icon payment" id="icon-payment-mq">💳</div><div class="node-label"><strong>Payment</strong></div></div>
+          </div>
+          <div class="fanout-arrow">
+            <div class="fanout-line" id="fl-inv-mq"></div>
+            <div class="node"><div class="node-icon inventory" id="icon-inventory-mq">📦</div><div class="node-label"><strong>Inventory</strong></div></div>
+          </div>
+          <div class="fanout-arrow">
+            <div class="fanout-line" id="fl-ord-mq"></div>
+            <div class="node"><div class="node-icon order" id="icon-order-mq">📋</div><div class="node-label"><strong>Order</strong></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <div class="count-box">
+          <label for="order-count-mq">Orders:</label>
+          <input type="number" id="order-count-mq" value="10" min="1">
+        </div>
+        <button class="btn-primary" id="btn-place-mq">🛒 Place Order(s)</button>
+        <button class="btn-secondary" id="btn-stop-mq">⏹ Stop</button>
+        <button class="btn-secondary" id="btn-reset-mq">♻️ Reset</button>
+        <span class="api-status" id="api-status-mq">checking RabbitMQ API...</span>
+      </div>
+
+      <!-- Throughput -->
+      <div class="throughput">
+        <div class="throughput-head"><span class="label">Throughput</span></div>
+        <div class="throughput-metrics">
+          <div class="tp-metric"><div class="val" id="elapsed-mq">0.0s</div><div class="lbl">Elapsed</div></div>
+          <div class="tp-metric"><div class="val" id="rate-mq">0.00/s</div><div class="lbl">Orders / sec</div></div>
+          <div class="tp-metric"><div class="val" id="progress-num-mq">0 / 100</div><div class="lbl">Processed / Cap</div></div>
+        </div>
+        <div class="progress-track"><div class="progress-fill mq" id="progress-bar-mq"></div></div>
+        <div class="chart-wrap">
+          <svg viewBox="0 0 260 60" preserveAspectRatio="none">
+            <line class="chart-grid-line" x1="0" y1="15" x2="260" y2="15" stroke-dasharray="2,3"/>
+            <line class="chart-grid-line" x1="0" y1="30" x2="260" y2="30" stroke-dasharray="2,3"/>
+            <line class="chart-grid-line" x1="0" y1="45" x2="260" y2="45" stroke-dasharray="2,3"/>
+            <polyline class="chart-line mq" id="chart-line-mq" points=""/>
+          </svg>
+        </div>
+        <div class="progress-caption">Cumulative orders processed vs. elapsed time</div>
+      </div>
+
+      <!-- Bottom panels -->
+      <div class="bottom">
+        <div class="panel">
+          <div class="panel-header"><div class="dot"></div><span>System Log</span></div>
+          <div class="log" id="log-mq"><div class="log-entry" style="color:var(--muted)">Waiting for orders...</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="panel">
+            <div class="panel-header"><div class="dot" style="background:var(--blue);box-shadow:0 0 6px var(--blue)"></div><span>Stats</span></div>
+            <div class="stats-grid">
+              <div class="stat"><div class="stat-val" id="stat-orders-mq" style="color:var(--blue)">0</div><div class="stat-label">Orders Sent</div></div>
+              <div class="stat"><div class="stat-val" id="stat-paid-mq" style="color:var(--green)">0</div><div class="stat-label">Payments OK</div></div>
+              <div class="stat"><div class="stat-val" id="stat-failed-mq" style="color:var(--red)">0</div><div class="stat-label">Pay Failed</div></div>
+              <div class="stat"><div class="stat-val" id="stat-queued-mq" style="color:var(--rabbit)">0</div><div class="stat-label">Msgs Routed</div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></div><span>Inventory</span></div>
+            <div class="stock-list" id="stock-display-mq"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const customers = ['Ali bin Ahmad','Siti Noor','Raj Kumar','Mei Ling','Aziz Harun'];
+const products  = [
+  { sku:'SKU-001', name:'Wireless Headphones', price:199 },
+  { sku:'SKU-042', name:'Phone Case',          price:15.5 },
+  { sku:'SKU-099', name:'Laptop Stand',         price:89 },
+];
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function createSim(suffix, limit, useApi) {
+  const $ = id => document.getElementById(`${id}-${suffix}`);
+
+  const stock = {
+    'SKU-001': { name: 'Wireless Headphones', qty: 50, max: 50 },
+    'SKU-042': { name: 'Phone Case',          qty: 200, max: 200 },
+    'SKU-099': { name: 'Laptop Stand',        qty: 15, max: 15 },
+  };
+  let stats = { orders: 0, paid: 0, failed: 0, queued: 0 };
+  let orderNum = 10000;
+  let stopRequested = false;
+  let startTime = null;
+  let timerHandle = null;
+  let timeline = [];
+  const CHART_WINDOW_S = Math.max(4, limit * 0.32); // assumed time-to-fill window
+
+  // ── Log ──────────────────────────────────────────────────────────────
+  function log(service, msg, cls) {
+    const el = $('log');
+    const now = new Date();
+    const t = now.toTimeString().slice(0,8);
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="log-time">${t}</span><span class="log-svc ${cls}">[${service}]</span><span class="log-msg">${msg}</span>`;
+    el.appendChild(entry);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────────
+  function updateStats() {
+    $('stat-orders').textContent = stats.orders;
+    $('stat-paid').textContent   = stats.paid;
+    $('stat-failed').textContent = stats.failed;
+    $('stat-queued').textContent = stats.queued;
+  }
+
+  // ── Stock ────────────────────────────────────────────────────────────
+  function renderStock() {
+    const el = $('stock-display');
+    el.innerHTML = Object.entries(stock).map(([sku, s]) => {
+      const pct = Math.round((s.qty / s.max) * 100);
+      const col = pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--yellow)' : 'var(--red)';
+      return `<div class="stock-row">
+        <div>
+          <div style="color:var(--text);font-weight:600">${s.name}</div>
+          <div style="color:var(--muted);font-size:0.6rem">${sku}</div>
+          <div class="stock-bar"><div class="stock-fill" style="width:${pct}%;background:${col}"></div></div>
+        </div>
+        <div style="color:${col};font-weight:700;font-size:1rem">${s.qty}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Node / line pulses ───────────────────────────────────────────────
+  function activateNode(id, duration=120) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.add('active','pulse');
+    setTimeout(() => el.classList.remove('active','pulse'), duration);
+  }
+  function activateLine(id, cls, duration=100) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.add(cls);
+    setTimeout(() => el.classList.remove(cls), duration);
+  }
+
+  // ── Throughput / chart ───────────────────────────────────────────────
+  function updateThroughput() {
+    const elapsedS = startTime ? (Date.now() - startTime) / 1000 : 0;
+    const rate = elapsedS > 0 ? stats.orders / elapsedS : 0;
+
+    $('elapsed').textContent = elapsedS.toFixed(1) + 's';
+    $('rate').textContent = rate.toFixed(2) + '/s';
+    $('progress-num').textContent = `${stats.orders} / ${limit}`;
+    $('progress-bar').style.width = Math.min(100, (stats.orders / limit) * 100) + '%';
+
+    timeline.push([elapsedS, stats.orders]);
+    const w = 260, h = 60;
+    const pts = timeline.map(([t, c]) => {
+      const x = Math.min(w, (t / CHART_WINDOW_S) * w);
+      const y = h - Math.min(h, (c / limit) * h);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    $('chart-line').setAttribute('points', pts);
+  }
+
+  function startTimer() {
+    if (timerHandle) return;
+    timerHandle = setInterval(updateThroughput, 100);
+  }
+  function stopTimer() {
+    if (timerHandle) { clearInterval(timerHandle); timerHandle = null; }
+  }
+
+  // ── Order animation ──────────────────────────────────────────────────
+  async function animateOrder(serverOrder) {
+    const orderId = serverOrder ? serverOrder.order_id : `ORD-${orderNum++}`;
+    const item = serverOrder
+      ? { sku: serverOrder.sku, name: serverOrder.name, price: serverOrder.total / serverOrder.qty }
+      : products[Math.floor(Math.random() * products.length)];
+    const qty   = serverOrder ? serverOrder.qty : (Math.floor(Math.random() * 3) + 1);
+    const total = serverOrder ? serverOrder.total.toFixed(2) : (item.price * qty).toFixed(2);
+
+    stats.orders++;
+    updateStats();
+    updateThroughput();
+
+    log('Producer', `Publishing ${orderId} — ${item.name} x${qty} — RM ${total}`, 'svc-producer');
+    activateNode('icon-producer', 150);
+    await delay(50);
+
+    activateLine('arrow-to-broker','active', 120);
+    await delay(40);
+
+    stats.queued += 3;
+    updateStats();
+    log('RabbitMQ', `📨 ${orderId} fanned out to 3 queues`, 'svc-broker');
+    activateNode('icon-broker', 150);
+    await delay(30);
+
+    activateLine('fl-pay','active-pay',100);
+    activateLine('fl-inv','active-inv',100);
+    activateLine('fl-ord','active-ord',100);
+    activateNode('icon-payment',120);
+    activateNode('icon-inventory',120);
+    activateNode('icon-order',120);
+    await delay(40);
+
+    const payOk = Math.random() < 0.85;
+    log('Payment', `⏳ Processing ${orderId}...`, 'svc-payment');
+    await delay(60);
+    if (payOk) {
+      stats.paid++;
+      log('Payment', `✅ APPROVED — RM ${total}`, 'svc-payment');
+    } else {
+      stats.failed++;
+      log('Payment', `❌ DECLINED — re-queued`, 'svc-payment');
+    }
+    updateStats();
+
+    log('Inventory', `⏳ Checking ${item.sku}...`, 'svc-inventory');
+    await delay(50);
+    if (stock[item.sku] && stock[item.sku].qty >= qty) {
+      stock[item.sku].qty -= qty;
+      log('Inventory', `✅ ${item.name} — ${stock[item.sku].qty} remaining`, 'svc-inventory');
+      renderStock();
+    } else {
+      log('Inventory', `⚠️ Insufficient stock for ${item.sku}`, 'svc-inventory');
+    }
+
+    log('Order', `⏳ Logging ${orderId}...`, 'svc-order');
+    await delay(40);
+    log('Order', `✅ ${orderId} confirmed`, 'svc-order');
+
+    updateThroughput();
+  }
+
+  // ── Place orders ─────────────────────────────────────────────────────
+  async function placeOrders() {
+    const btn = $('btn-place');
+    const countInput = $('order-count');
+    let requested = parseInt(countInput.value, 10) || 1;
+    requested = Math.max(1, requested);
+    let count = Math.min(requested, limit);
+
+    btn.disabled = true;
+    stopRequested = false;
+    if (!startTime) {
+      startTime = Date.now();
+      timeline = [[0, stats.orders]];
+      startTimer();
+    }
+
+    if (requested > limit) {
+      log('System', `🚀 Requested ${requested} order(s) — this system caps at ${limit}, processing ${count} only`, 'svc-broker');
+    } else {
+      log('System', `🚀 Placing ${count} order(s)...`, 'svc-broker');
+    }
+
+    let serverOrders = null;
+    if (useApi) {
+      try {
+        const res = await fetch(`${API_URL}/order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count }),
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          serverOrders = data.orders;
+          log('System', `✅ ${serverOrders.length} order(s) published to 'shopez_orders' exchange`, 'svc-broker');
+        } else {
+          log('System', `⚠️ ${data.message || 'API returned an error'}`, 'svc-payment');
+        }
+      } catch (e) {
+        log('System', `❌ Could not reach order_api.py at ${API_URL}. Falling back to local simulation.`, 'svc-payment');
+      }
+    }
+
+    for (let i = 0; i < count; i++) {
+      if (stopRequested) {
+        log('System', `⏹ Stopped after ${i} of ${count} order(s)`, 'svc-broker');
+        break;
+      }
+      const o = serverOrders ? serverOrders[i] : null;
+      await animateOrder(o);
+    }
+
+    btn.disabled = false;
+  }
+
+  function stopOrders() {
+    stopRequested = true;
+  }
+
+  function resetSimulation() {
+    stopRequested = true;
+    stopTimer();
+
+    stats = { orders: 0, paid: 0, failed: 0, queued: 0 };
+    updateStats();
+
+    stock['SKU-001'].qty = stock['SKU-001'].max;
+    stock['SKU-042'].qty = stock['SKU-042'].max;
+    stock['SKU-099'].qty = stock['SKU-099'].max;
+    renderStock();
+
+    orderNum = 10000;
+    startTime = null;
+    timeline = [];
+
+    $('elapsed').textContent = '0.0s';
+    $('rate').textContent = '0.00/s';
+    $('progress-num').textContent = `0 / ${limit}`;
+    $('progress-bar').style.width = '0%';
+    $('chart-line').setAttribute('points', '');
+
+    $('log').innerHTML = '';
+    log('System', '♻️ Simulation reset', 'svc-broker');
+
+    $('btn-place').disabled = false;
+  }
+
+  // Init
+  renderStock();
+  updateStats();
+  $('progress-num').textContent = `0 / ${limit}`;
+
+  $('btn-place').addEventListener('click', placeOrders);
+  $('btn-stop').addEventListener('click', stopOrders);
+  $('btn-reset').addEventListener('click', resetSimulation);
+}
+
+// ── Backend connection (RabbitMQ via order_api.py) for the MQ side only ──
+const API_URL = 'http://localhost:5000';
+
+async function checkApi() {
+  const el = document.getElementById('api-status-mq');
+  try {
+    const res = await fetch(`${API_URL}/health`);
+    if (res.ok) {
+      el.textContent = '🐇 RabbitMQ API connected';
+      el.style.color = 'var(--green)';
+    } else {
+      throw new Error();
+    }
+  } catch {
+    el.textContent = '⚠️ order_api.py not running — using local fallback';
+    el.style.color = 'var(--red)';
+  }
+  setTimeout(checkApi, 5000);
+}
+
+createSim('basic', 50, false);
+createSim('mq', 100, true);
+checkApi();
+</script>
+</body>
+</html>

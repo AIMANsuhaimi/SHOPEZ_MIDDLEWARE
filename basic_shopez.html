@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShopEZ Malaysia — RabbitMQ Middleware Simulation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111827;
+    --border: #1e2d45;
+    --accent: #f97316;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #38bdf8;
+    --purple: #a78bfa;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --rabbit: #ff6b35;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 1;
+    padding: 24px 40px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+
+  .badge {
+    background: rgba(249,115,22,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(249,115,22,0.3);
+    border-radius: 999px;
+    padding: 4px 14px;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    padding: 32px 40px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    margin-bottom: 32px;
+  }
+
+  /* Architecture diagram */
+  .arch {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 36px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    overflow-x: auto;
+  }
+
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 110px;
+  }
+
+  .node-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .node-icon.producer  { background: rgba(56,189,248,0.12); border-color: var(--blue); }
+  .node-icon.broker    { background: rgba(249,115,22,0.12); border-color: var(--rabbit); }
+  .node-icon.payment   { background: rgba(34,197,94,0.12);  border-color: var(--green); }
+  .node-icon.inventory { background: rgba(167,139,250,0.12);border-color: var(--purple); }
+  .node-icon.order     { background: rgba(251,191,36,0.12); border-color: var(--yellow); }
+
+  .node-icon.active { transform: scale(1.15); box-shadow: 0 0 20px currentColor; }
+  .node-icon.pulse::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 18px;
+    border: 2px solid currentColor;
+    animation: pulse-ring 1s ease-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.4); }
+  }
+
+  .node-label {
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.3;
+  }
+  .node-label strong { color: var(--text); display: block; font-size: 0.75rem; }
+
+  .arrow {
+    flex: 1;
+    min-width: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .arrow-line {
+    height: 2px;
+    width: 100%;
+    background: var(--border);
+    position: relative;
+    overflow: visible;
+  }
+
+  .arrow-line::after {
+    content: '▶';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--border);
+    font-size: 10px;
+    transition: color 0.3s;
+  }
+
+  .arrow-line.active { background: var(--accent); }
+  .arrow-line.active::after { color: var(--accent); }
+
+  .fanout-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-left: 8px;
+  }
+
+  .fanout-arrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 160px;
+  }
+
+  .fanout-line {
+    height: 2px;
+    width: 60px;
+    background: var(--border);
+    transition: background 0.4s;
+    position: relative;
+  }
+  .fanout-line::after {
+    content: '▶';
+    position: absolute;
+    right: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9px;
+    color: var(--border);
+    transition: color 0.4s;
+  }
+  .fanout-line.active-pay    { background: var(--green);  }
+  .fanout-line.active-pay::after  { color: var(--green); }
+  .fanout-line.active-inv    { background: var(--purple); }
+  .fanout-line.active-inv::after  { color: var(--purple); }
+  .fanout-line.active-ord    { background: var(--yellow); }
+  .fanout-line.active-ord::after  { color: var(--yellow); }
+
+  /* Message packet animation */
+  .packet {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    background: var(--accent);
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #ea6c0a; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Bottom layout */
+  .bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  @media (max-width: 800px) { .bottom { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+  }
+  .panel-header .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+  .panel-header span { color: var(--text); font-weight: 600; }
+
+  #log {
+    height: 300px;
+    overflow-y: auto;
+    padding: 12px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-entry { display: flex; gap: 8px; }
+  .log-time  { color: var(--muted); flex-shrink: 0; }
+  .log-svc   { flex-shrink: 0; font-weight: 600; min-width: 160px; }
+  .log-msg   { color: var(--text); }
+
+  .svc-producer  { color: var(--blue); }
+  .svc-broker    { color: var(--rabbit); }
+  .svc-payment   { color: var(--green); }
+  .svc-inventory { color: var(--purple); }
+  .svc-order     { color: var(--yellow); }
+
+  /* Stats */
+  .stats-grid {
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .stat {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .stat-val {
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stock-list {
+    padding: 12px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  .stock-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stock-row:last-child { border-bottom: none; }
+
+  .stock-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .stock-fill {
+    height: 100%;
+    background: var(--purple);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  .queue-vis {
+    padding: 16px 18px;
+  }
+
+  .queue-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .queue-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    min-width: 80px;
+  }
+
+  .queue-msgs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .q-msg {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    font-size: 0.55rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-weight: 700;
+    animation: pop-in 0.3s ease;
+  }
+
+  @keyframes pop-in {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  .q-msg.pay { background: var(--green); }
+  .q-msg.inv { background: var(--purple); }
+  .q-msg.ord { background: var(--yellow); }
+
+  .empty-queue {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Shop<span>EZ</span> Malaysia</div>
+  <div class="badge">RABBITMQ MIDDLEWARE SIM</div>
+</header>
+
+<main>
+  <h1>Message-Oriented Middleware</h1>
+  <p class="subtitle">// Asynchronous order processing via RabbitMQ fanout exchange</p>
+
+  <!-- Architecture -->
+  <div class="arch" id="arch">
+    <!-- Producer -->
+    <div class="node" id="node-producer">
+      <div class="node-icon producer" id="icon-producer">🛒</div>
+      <div class="node-label"><strong>Producer</strong>Customer / UI</div>
+    </div>
+
+    <div class="arrow">
+      <div class="arrow-line" id="arrow-to-broker"></div>
+    </div>
+
+    <!-- Broker -->
+    <div class="node" id="node-broker">
+      <div class="node-icon broker" id="icon-broker">🐇</div>
+      <div class="node-label"><strong>RabbitMQ</strong>Fanout Exchange</div>
+    </div>
+
+    <!-- Fanout arrows + consumers -->
+    <div class="fanout-block">
+      <div class="fanout-arrow">
+        <div class="fanout-line" id="fl-pay"></div>
+        <div class="node">
+          <div class="node-icon payment" id="icon-payment">💳</div>
+          <div class="node-label"><strong>Payment</strong>Service</div>
+        </div>
+      </div>
+      <div class="fanout-arrow">
+        <div class="fanout-line" id="fl-inv"></div>
+        <div class="node">
+          <div class="node-icon inventory" id="icon-inventory">📦</div>
+          <div class="node-label"><strong>Inventory</strong>Service</div>
+        </div>
+      </div>
+      <div class="fanout-arrow">
+        <div class="fanout-line" id="fl-ord"></div>
+        <div class="node">
+          <div class="node-icon order" id="icon-order">📋</div>
+          <div class="node-label"><strong>Order</strong>Service</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div style="display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px 14px;">
+      <label for="order-count" style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--muted);">Orders:</label>
+      <input type="number" id="order-count" value="1" min="1" style="width:60px;background:transparent;border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:0.9rem;outline:none;">
+    </div>
+    <button class="btn-primary" id="btn-place" onclick="placeOrders()">🛒 Place Order(s)</button>
+    <button class="btn-secondary" onclick="stopOrders()">⏹ Stop</button>
+    <button class="btn-secondary" onclick="resetSimulation()">♻️ Reset</button>
+    <button class="btn-secondary" onclick="clearLog()">Clear Log</button>
+  </div>
+
+  <!-- Bottom panels -->
+  <div class="bottom">
+    <!-- Log -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="dot"></div>
+        <span>System Log</span> — live message flow
+      </div>
+      <div id="log"><div class="log-entry" style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:0.72rem;padding:4px 0;">Waiting for orders...</div></div>
+    </div>
+
+    <!-- Stats + Stock -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <!-- Stats -->
+      <div class="panel">
+        <div class="panel-header"><div class="dot" style="background:var(--blue);box-shadow:0 0 6px var(--blue)"></div><span>Stats</span></div>
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-val" id="stat-orders" style="color:var(--blue)">0</div>
+            <div class="stat-label">Orders Sent</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="stat-paid" style="color:var(--green)">0</div>
+            <div class="stat-label">Payments OK</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="stat-failed" style="color:var(--red)">0</div>
+            <div class="stat-label">Pay Failed</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="stat-queued" style="color:var(--rabbit)">0</div>
+            <div class="stat-label">Msgs Routed</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory -->
+      <div class="panel">
+        <div class="panel-header"><div class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></div><span>Inventory</span> — live stock</div>
+        <div class="stock-list" id="stock-display"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const stock = { 'SKU-001': { name: 'Wireless Headphones', qty: 50, max: 50 }, 'SKU-042': { name: 'Phone Case', qty: 200, max: 200 }, 'SKU-099': { name: 'Laptop Stand', qty: 15, max: 15 } };
+let stats = { orders: 0, paid: 0, failed: 0, queued: 0 };
+let orderNum = 10000;
+let stopRequested = false;
+
+const customers = ['Ali bin Ahmad','Siti Noor','Raj Kumar','Mei Ling','Aziz Harun'];
+const products  = [
+  { sku:'SKU-001', name:'Wireless Headphones', price:199 },
+  { sku:'SKU-042', name:'Phone Case',          price:15.5 },
+  { sku:'SKU-099', name:'Laptop Stand',         price:89 },
+];
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+function log(service, msg, cls) {
+  const el = document.getElementById('log');
+  const now = new Date();
+  const t = now.toTimeString().slice(0,8);
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${t}</span><span class="log-svc ${cls}">[${service}]</span><span class="log-msg">${msg}</span>`;
+  el.appendChild(entry);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('stat-orders').textContent = stats.orders;
+  document.getElementById('stat-paid').textContent   = stats.paid;
+  document.getElementById('stat-failed').textContent = stats.failed;
+  document.getElementById('stat-queued').textContent = stats.queued;
+}
+
+// ── Stock display ─────────────────────────────────────────────────────────────
+function renderStock() {
+  const el = document.getElementById('stock-display');
+  el.innerHTML = Object.entries(stock).map(([sku, s]) => {
+    const pct = Math.round((s.qty / s.max) * 100);
+    const col = pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--yellow)' : 'var(--red)';
+    return `<div class="stock-row">
+      <div>
+        <div style="color:var(--text);font-weight:600">${s.name}</div>
+        <div style="color:var(--muted);font-size:0.65rem">${sku}</div>
+        <div class="stock-bar"><div class="stock-fill" style="width:${pct}%;background:${col}"></div></div>
+      </div>
+      <div style="color:${col};font-weight:700;font-size:1.1rem">${s.qty}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Animate node ──────────────────────────────────────────────────────────────
+function activateNode(id, duration=800) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('active','pulse');
+  setTimeout(() => el.classList.remove('active','pulse'), duration);
+}
+
+function activateLine(id, cls, duration=600) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), duration);
+}
+
+// ── Main order flow (fully local simulation, no backend needed) ─────────────
+async function placeOrders() {
+  const ORDER_LIMIT = 50;
+  const btn = document.getElementById('btn-place');
+  const countInput = document.getElementById('order-count');
+  let requested = parseInt(countInput.value, 10) || 1;
+  requested = Math.max(1, requested);
+  let count = requested;
+
+  btn.disabled = true;
+  stopRequested = false;
+
+  if (requested > ORDER_LIMIT) {
+    count = ORDER_LIMIT;
+    log('System', `🚀 Requested ${requested} order(s) — this simulation caps at ${ORDER_LIMIT}, processing ${count} only`, 'svc-broker');
+  } else {
+    log('System', `🚀 Placing ${count} order(s)...`, 'svc-broker');
+  }
+
+  for (let i = 0; i < count; i++) {
+    if (stopRequested) {
+      log('System', `⏹ Stopped after ${i} of ${count} order(s)`, 'svc-broker');
+      break;
+    }
+    await animateOrder();
+  }
+
+  btn.disabled = false;
+}
+
+function stopOrders() {
+  stopRequested = true;
+}
+
+function resetSimulation() {
+  stopRequested = true;
+
+  stats = { orders: 0, paid: 0, failed: 0, queued: 0 };
+  updateStats();
+
+  stock['SKU-001'].qty = stock['SKU-001'].max;
+  stock['SKU-042'].qty = stock['SKU-042'].max;
+  stock['SKU-099'].qty = stock['SKU-099'].max;
+  renderStock();
+
+  orderNum = 10000;
+
+  document.getElementById('log').innerHTML = '';
+  log('System', '♻️ Simulation reset — stats, stock, and log cleared', 'svc-broker');
+
+  document.getElementById('btn-place').disabled = false;
+}
+
+async function animateOrder() {
+  const orderId = `ORD-${orderNum++}`;
+  const customer = customers[Math.floor(Math.random() * customers.length)];
+  const item = products[Math.floor(Math.random() * products.length)];
+  const qty  = Math.floor(Math.random() * 3) + 1;
+  const total = (item.price * qty).toFixed(2);
+
+  stats.orders++;
+  updateStats();
+
+  // 1. Producer publishes
+  log('Producer', `Publishing order ${orderId} — ${item.name} x${qty} — RM ${total}`, 'svc-producer');
+  activateNode('icon-producer', 150);
+  await delay(50);
+
+  // Arrow to broker
+  activateLine('arrow-to-broker','active', 120);
+  await delay(40);
+
+  // 2. Broker receives
+  stats.queued += 3;
+  updateStats();
+  log('RabbitMQ', `📨 Order received — fanout to 3 queues (Payment, Inventory, Order)`, 'svc-broker');
+  activateNode('icon-broker', 150);
+  await delay(30);
+
+  // 3. Fan out simultaneously
+  activateLine('fl-pay','active-pay',100);
+  activateLine('fl-inv','active-inv',100);
+  activateLine('fl-ord','active-ord',100);
+  activateNode('icon-payment',120);
+  activateNode('icon-inventory',120);
+  activateNode('icon-order',120);
+  await delay(40);
+
+  // 4. Payment
+  const payOk = Math.random() < 0.85;
+  log('Payment Svc', `⏳ Processing payment for ${orderId}...`, 'svc-payment');
+  await delay(60);
+  if (payOk) {
+    stats.paid++;
+    log('Payment Svc', `✅ Payment APPROVED — RM ${total}`, 'svc-payment');
+  } else {
+    stats.failed++;
+    log('Payment Svc', `❌ Payment DECLINED — message re-queued for retry`, 'svc-payment');
+  }
+  updateStats();
+
+  // 5. Inventory
+  log('Inventory Svc', `⏳ Checking stock for ${item.sku}...`, 'svc-inventory');
+  await delay(50);
+  if (stock[item.sku] && stock[item.sku].qty >= qty) {
+    stock[item.sku].qty -= qty;
+    log('Inventory Svc', `✅ Stock updated: ${item.name} — ${stock[item.sku].qty} remaining`, 'svc-inventory');
+    renderStock();
+  } else {
+    log('Inventory Svc', `⚠️  Insufficient stock for ${item.sku}`, 'svc-inventory');
+  }
+
+  // 6. Order
+  log('Order Svc', `⏳ Logging order to DB...`, 'svc-order');
+  await delay(40);
+  log('Order Svc', `✅ Order ${orderId} confirmed — confirmation email queued`, 'svc-order');
+
+  log('System', `─── Order ${orderId} processed independently (async) ───`, 'svc-broker');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function clearLog() {
+  document.getElementById('log').innerHTML = '<div style="color:var(--muted);font-family:\'JetBrains Mono\',monospace;font-size:0.72rem;padding:4px 0;">Log cleared.</div>';
+}
+
+// Init
+renderStock();
+updateStats();
+</script>
+</body>
+</html>

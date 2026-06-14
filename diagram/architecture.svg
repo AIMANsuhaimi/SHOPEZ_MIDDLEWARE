@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="100%" height="100%" style="background-color: white; font-family: Arial, sans-serif;">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#000" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="500" y="40" font-size="20" font-weight="bold" text-anchor="middle" fill="#000">System Architecture Diagram</text>
+
+  <!-- Docker Boundary -->
+  <rect x="250" y="100" width="700" height="450" fill="none" stroke="#000" stroke-width="1" stroke-dasharray="5,5" />
+  <text x="260" y="120" font-size="12" font-style="italic" fill="#000">Docker Network (shopez_default)</text>
+
+  <!-- Components -->
+  <rect x="60" y="270" width="120" height="60" fill="#fff" stroke="#000" stroke-width="1.5" />
+  <text x="120" y="300" font-size="14" font-weight="bold" text-anchor="middle" fill="#000">Client Browser</text>
+  <text x="120" y="315" font-size="12" text-anchor="middle" fill="#000">(HTML/JS UI)</text>
+
+  <line x1="180" y1="300" x2="290" y2="300" stroke="#000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="235" y="290" font-size="12" text-anchor="middle" fill="#000">HTTP POST</text>
+
+  <rect x="300" y="260" width="140" height="80" fill="#fff" stroke="#000" stroke-width="1.5" />
+  <text x="370" y="295" font-size="14" font-weight="bold" text-anchor="middle" fill="#000">Flask API</text>
+  <text x="370" y="315" font-size="12" text-anchor="middle" fill="#000">Container: order-api</text>
+
+  <line x1="440" y1="300" x2="550" y2="300" stroke="#000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="495" y="290" font-size="12" text-anchor="middle" fill="#000">AMQP Publish</text>
+
+  <rect x="560" y="210" width="140" height="180" fill="#fff" stroke="#000" stroke-width="1.5" />
+  <text x="630" y="240" font-size="14" font-weight="bold" text-anchor="middle" fill="#000">RabbitMQ Broker</text>
+  <line x1="560" y1="260" x2="700" y2="260" stroke="#000" stroke-width="1" />
+  <text x="630" y="300" font-size="12" text-anchor="middle" fill="#000">Exchange:</text>
+  <text x="630" y="320" font-size="12" font-weight="bold" text-anchor="middle" fill="#000">shopez_orders</text>
+  <text x="630" y="340" font-size="12" text-anchor="middle" fill="#000">(Fanout)</text>
+
+  <path d="M 700 300 L 730 300 L 730 180 L 770 180" fill="none" stroke="#000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="740" y="230" font-size="10" text-anchor="middle" fill="#000" transform="rotate(-90 740,230)">AMQP Push</text>
+
+  <line x1="700" y1="300" x2="770" y2="300" stroke="#000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="735" y="290" font-size="10" text-anchor="middle" fill="#000">AMQP Push</text>
+
+  <path d="M 700 300 L 730 300 L 730 420 L 770 420" fill="none" stroke="#000" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="740" y="370" font-size="10" text-anchor="middle" fill="#000" transform="rotate(90 740,370)">AMQP Push</text>
+
+  <rect x="780" y="150" width="140" height="60" fill="#fff" stroke="#000" stroke-width="1.5" />
+  <text x="850" y="180" font-size="12" font-weight="bold" text-anchor="middle" fill="#000">Payment Svc</text>
+  <text x="850" y="195" font-size="10" text-anchor="middle" fill="#000">consumer-payment</text>
+
+  <rect x="780" y="270" width="140" height="60" fill="#fff" stroke="#000" stroke-width="1.5" />
+  <text x="850" y="300" font-size="12" font-weight="bold" text-anchor="middle" fill="#000">Inventory Svc</text>
+  <text x="850" y="315" font-size="10" text-anchor="middle" fill="#000">consumer-inventory</text>
+
+  <rect x="780" y="390" width="140" height="60" fill="#fff" stroke="#000" stroke-width="1.5" />
+  <text x="850" y="420" font-size="12" font-weight="bold" text-anchor="middle" fill="#000">Order Svc</text>
+  <text x="850" y="435" font-size="10" text-anchor="middle" fill="#000">consumer-order</text>
+
+</svg>

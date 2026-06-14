@@ -1,0 +1,55 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: shopez-rabbitmq
+    ports:
+      - "5673:5672"
+      - "16672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-api:
+    build: .
+    container_name: shopez-order-api
+    command: python order_api.py
+    ports:
+      - "5000:5000"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - FLASK_HOST=0.0.0.0
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer-inventory:
+    build: .
+    container_name: shopez-consumer-inventory
+    command: python consumer_inventory.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer-order:
+    build: .
+    container_name: shopez-consumer-order
+    command: python consumer_order.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer-payment:
+    build: .
+    container_name: shopez-consumer-payment
+    command: python consumer_payment.py
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
