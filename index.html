@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShopEZ Malaysia - Simulation Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --panel: #111827;
+    --border: #1e2d45;
+    --accent: #f97316;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --hover: #1f2937;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px;
+    background-image:
+      linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 50px;
+  }
+
+  .logo {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+  }
+  .logo span { color: var(--accent); }
+
+  .subtitle {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    width: 100%;
+    max-width: 1000px;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card:hover {
+    transform: translateY(-5px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 30px -10px rgba(249, 115, 22, 0.2);
+  }
+
+  .card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+  }
+
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .card-desc {
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    flex-grow: 1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Shop<span>EZ</span> Malaysia</div>
+  <p class="subtitle">// System Architecture & Middleware Simulations Directory</p>
+</header>
+
+<div class="grid">
+  <a href="shopez_simulation.html" class="card">
+    <div class="card-icon">🐇</div>
+    <div class="card-title">RabbitMQ Middleware Simulation</div>
+    <div class="card-desc">Interactive dashboard demonstrating asynchronous message brokering, fanout exchanges, and microservices architecture.</div>
+  </a>
+
+  <a href="p2p_vs_middleware.html" class="card">
+    <div class="card-icon">⚖️</div>
+    <div class="card-title">Architecture Comparison</div>
+    <div class="card-desc">Side-by-side visual comparison between Point-to-Point (P2P) synchronous architecture and Message-Oriented Middleware.</div>
+  </a>
+
+  <a href="shopez_comparison.html" class="card">
+    <div class="card-icon">📊</div>
+    <div class="card-title">Basic vs RabbitMQ Stats</div>
+    <div class="card-desc">Detailed statistical and flow comparison between a basic implementation and the robust RabbitMQ architecture.</div>
+  </a>
+
+  <a href="basic_shopez.html" class="card">
+    <div class="card-icon">⚙️</div>
+    <div class="card-title">Basic Implementation</div>
+    <div class="card-desc">A simpler, synchronous baseline implementation of the ShopEZ system for contrast and foundational understanding.</div>
+  </a>
+</div>
+
+</body>
+</html>
