@@ -478,7 +478,7 @@
         for(let i = 0; i < count; i++) {
             try {
                 animateP2P();
-                let res = await fetch('http://localhost:5000/order_p2p', {
+                let res = await fetch('https://shopezmiddleware-production.up.railway.app/order_p2p', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ count: 1 })
@@ -518,7 +518,7 @@
         for(let i = 0; i < count; i++) {
             try {
                 animateMQ();
-                let res = await fetch('http://localhost:5000/order', {
+                let res = await fetch('https://shopezmiddleware-production.up.railway.app/order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ count: 1 })

@@ -931,7 +931,7 @@ function createSim(suffix, limit, useApi) {
 }
 
 // ── Backend connection (RabbitMQ via order_api.py) for the MQ side only ──
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://shopezmiddleware-production.up.railway.app';
 
 async function checkApi() {
   const el = document.getElementById('api-status-mq');
